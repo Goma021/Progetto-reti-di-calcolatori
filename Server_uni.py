@@ -2,7 +2,7 @@ import socket
 import pickle
 import threading
 import os
-from esame import Esame
+from esame import Esame  # Importa la classe Esame dal modulo esame
 
 # Costanti per la configurazione del server
 FORMAT = 'utf-8'  # Formato di codifica per le stringhe
@@ -14,12 +14,13 @@ FILE_ESAMI = 'esami.pkl'  # Nome del file in cui sono salvati gli esami
 
 # Creazione del socket del server
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind(ADDR)  # Associa il socket all'indirizzo e alla porta
+server_socket.bind(ADDR)  # Associa il socket all'indirizzo e alla porta specificati
 server_socket.listen(5)  # Il server ascolta fino a 5 connessioni in coda
 
 # Variabile globale per controllare lo stato del server
 server_running = True
 
+# Carica gli esami dal file se esiste, altrimenti crea una lista vuota
 # Carica gli esami dal file se esiste, altrimenti crea una lista vuota
 if os.path.exists(FILE_ESAMI):
     with open(FILE_ESAMI, 'rb') as f:
@@ -48,33 +49,21 @@ def gestisci_client(conn, addr):
                         esame_trovato = esame
                         break
                 if esame_trovato:
-                    date_disponibili = ', '.join(esame_trovato.date_disponibili)
-                    conn.sendall(date_disponibili.encode(FORMAT))
+                    # Se l'esame è trovato, invia i dettagli al client
+                    conn.send(pickle.dumps(esame_trovato))
                 else:
-                    conn.sendall(f"Esame {nome_esame} non trovato.".encode(FORMAT))
-            elif richiesta == "INSERISCI_ESAME":
-                # Gestisce l'inserimento di un nuovo esame
-                esame_serializzato = conn.recv(1024)
-                esame = pickle.loads(esame_serializzato)
-                Lista_esami.append(esame)
-                salva_esami()
-                conn.sendall(f"Esame {esame.nome_esame} aggiunto con successo.".encode(FORMAT))
-            elif richiesta == "PRENOTAZIONE_ESAME":
-                # Gestisce la prenotazione di un esame
-                prenotazione_serializzata = conn.recv(1024)
-                prenotazione = pickle.loads(prenotazione_serializzata)
-                # Logica per gestire la prenotazione
-                conn.sendall(f"Prenotazione per {prenotazione['nome_esame']} ricevuta.".encode(FORMAT))
+                    # Se l'esame non è trovato, invia un messaggio di errore
+                    conn.send("Esame non trovato".encode(FORMAT))
             elif richiesta == DISCONNESSIONE:
-                # Gestisce la disconnessione del client
+                # Gestisce la richiesta di disconnessione
                 print(f"Disconnessione da {addr}")
                 break
-    except socket.error as e:
-        print(f"Errore di connessione: {e}")
+    except Exception as e:
+        print(f"Errore con {addr}: {e}")
     finally:
-        conn.close()
-        print(f"Connessione chiusa con {addr}")
+        conn.close()  # Chiude la connessione con il client
 
+# Funzione per avviare il server
 # Funzione per avviare il server
 def avvia_server():
     global server_running
@@ -82,37 +71,54 @@ def avvia_server():
     try:
         while server_running:
             try:
+                # Accetta una nuova connessione
                 conn, addr = server_socket.accept()
+                # Crea un nuovo thread per gestire il client
                 thread = threading.Thread(target=gestisci_client, args=(conn, addr))
                 thread.start()
+                # Stampa il numero di connessioni attive (escludendo il thread principale e il thread del server)
                 print(f"[Connessioni Attive] {threading.active_count() - 2}")
             except socket.error as e:
+                # Gestisce eventuali errori durante l'accettazione della connessione
                 if server_running:
                     print(f"Errore durante l'accettazione della connessione: {e}")
     finally:
+        # Chiude il socket del server quando il ciclo termina
         server_socket.close()
         print("Server chiuso.")
 
 # Funzione per visualizzare gli esami
+# Funzione per visualizzare gli esami
 def visualizza_esami():
+    # Controlla se il file degli esami esiste
     if os.path.exists(FILE_ESAMI):
+        # Apre il file degli esami in modalità lettura binaria
         with open(FILE_ESAMI, 'rb') as f:
+            # Carica la lista degli esami dal file
             Lista_esami = pickle.load(f)
+            # Stampa i dettagli di ogni esame
             for esame in Lista_esami:
                 print(f"Nome Esame: {esame.nome_esame}, Date Disponibili: {', '.join(esame.date_disponibili)}")
     else:
+        # Stampa un messaggio se il file non esiste
         print("Il file esami.pkl non esiste.")
 
 # Esegui il server in un thread separato per poterlo fermare da terminale
 server_thread = threading.Thread(target=avvia_server)
 server_thread.start()
+
+# Visualizza gli esami caricati dal file
 visualizza_esami()
 
 # Loop principale per fermare il server da terminale
 while server_running:
+    # Attende l'input dell'utente per fermare il server
     chiudi = input("")
     if chiudi == "1":
+        # Imposta la variabile per fermare il server
         server_running = False
+        # Chiude il socket del server
         server_socket.close()
     else:
+        # Continua il loop se l'input non è "1"
         pass

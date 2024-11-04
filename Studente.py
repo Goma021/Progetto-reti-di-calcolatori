@@ -21,15 +21,23 @@ except socket.error as e:
 # Funzione per richiedere le date degli esami
 def richiesta_esami():
     try:
+        # Invia una richiesta per ottenere le date degli esami
         studente_socket.sendall("DATE_ESAMI".encode(FORMAT))
+        
+        # Richiede all'utente di inserire il nome dell'esame
         nome_esame = input("Inserisci il nome dell'esame: ")
-        nome_esame = nome_esame.upper()
+        # Converte il nome dell'esame in maiuscolo
+        nome_esame = nome_esame.upper()  
+        
+        # Verifica che il nome dell'esame non sia vuoto
         if not nome_esame:
             print("Il nome dell'esame non può essere vuoto.")
             return
 
+        # Invia il nome dell'esame al server
         studente_socket.sendall(nome_esame.encode(FORMAT))
 
+        # Riceve le date disponibili dal server
         date_disponibili = studente_socket.recv(1024).decode(FORMAT)
         print(f"Le date disponibili per {nome_esame} sono: {date_disponibili}")
     except socket.error as e:
@@ -38,12 +46,21 @@ def richiesta_esami():
 # Funzione per prenotare un esame
 def prenotazione_esame():
     try:
+        # Invia una richiesta per prenotare un esame
         studente_socket.send("PRENOTAZIONE_ESAME".encode(FORMAT))
+        
+        # Richiede all'utente di inserire il proprio ID studente
         studente_id = input("Inserisci il tuo id studente: ")
+        
+        # Richiede all'utente di inserire il nome dell'esame
         nome_esame = input("Inserisci il nome dell'esame: ")
-        nome_esame = nome_esame.upper()
+        # Converte il nome dell'esame in maiuscolo
+        nome_esame = nome_esame.upper()  
+        
+        # Richiede all'utente di inserire la data dell'esame
         data_esame = input("Inserisci la data dell'esame (dd-mm-yyyy): ")
 
+        # Verifica che tutti i campi siano stati compilati
         if not studente_id or not nome_esame or not data_esame:
             print("Tutti i campi sono obbligatori.")
             return
@@ -62,28 +79,39 @@ def prenotazione_esame():
         print(f"Errore durante la prenotazione dell'esame: {e}")
 
 # Funzione per chiudere la connessione
+# Funzione per chiudere la connessione
 def chiudi_connessione():
     try:
+        # Invia un messaggio di disconnessione al server
         studente_socket.send(DISCONNESSIONE.encode(FORMAT))
     except socket.error as e:
+        # Stampa un messaggio di errore in caso di problemi durante la disconnessione
         print(f"Errore durante la disconnessione: {e}")
     finally:
+        # Chiude il socket per terminare la connessione
         studente_socket.close()
 
 # Funzione per far scegliere all'utente un'opzione
 if __name__ == "__main__":
     while True:
+        # Stampa il menu delle opzioni
         print("1. Richiesta esami")
         print("2. Prenotazione esame")
         print("3. Disconnessione")
+        
+        # Richiede all'utente di scegliere un'opzione
         scelta = input("Scegli un'opzione: ")
 
         if scelta == '1':
+            # Esegue la funzione per richiedere le date degli esami
             richiesta_esami()
         elif scelta == '2':
+            # Esegue la funzione per prenotare un esame
             prenotazione_esame()
         elif scelta == '3':
+            # Esegue la funzione per chiudere la connessione e termina il ciclo
             chiudi_connessione()
             break
         else:
+            # Stampa un messaggio di errore in caso di opzione non valida
             print("Opzione non valida. Riprova.")
