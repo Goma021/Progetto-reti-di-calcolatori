@@ -19,8 +19,7 @@ server_socket.listen(5)  # Il server ascolta fino a 5 connessioni in coda
 
 # Variabile globale per controllare lo stato del server
 server_running = True
-
-# Carica gli esami dal file se esiste, altrimenti crea una lista vuota
+ 
 # Carica gli esami dal file se esiste, altrimenti crea una lista vuota
 if os.path.exists(FILE_ESAMI):
     with open(FILE_ESAMI, 'rb') as f:
@@ -32,6 +31,13 @@ else:
 def salva_esami():
     with open(FILE_ESAMI, 'wb') as f:
         pickle.dump(Lista_esami, f)
+
+# Funzione per inserire un nuovo esame
+def inserisci_esame(dati_esame):
+    esame = pickle.loads(dati_esame)
+    Lista_esami.append(esame)
+    salva_esami()
+    print(f"Esame {esame.nome_esame} inserito con successo.")
 
 # Funzione per gestire le richieste dei client
 def gestisci_client(conn, addr):
@@ -54,6 +60,23 @@ def gestisci_client(conn, addr):
                 else:
                     # Se l'esame non è trovato, invia un messaggio di errore
                     conn.send("Esame non trovato".encode(FORMAT))
+            elif richiesta == "PRENOTAZIONE_ESAME":
+                # Gestisce la prenotazione di un esame
+                prenotazione = pickle.loads(conn.recv(5000))
+                esame_trovato = None
+                for esame in Lista_esami:
+                    if esame.nome_esame == prenotazione['nome_esame']:
+                        esame_trovato = esame
+                        break
+                if esame_trovato and prenotazione['data_esame'] in esame_trovato.date_disponibili:
+                    conn.send("Prenotazione confermata".encode(FORMAT))
+                else:
+                    conn.send("Prenotazione fallita".encode(FORMAT))
+            elif richiesta == "INSERISCI_ESAME":
+                # Gestisce l'inserimento di un nuovo esame
+                dati_esame = conn.recv(5000)
+                inserisci_esame(dati_esame)
+                conn.send("Esame inserito con successo".encode(FORMAT))
             elif richiesta == DISCONNESSIONE:
                 # Gestisce la richiesta di disconnessione
                 print(f"Disconnessione da {addr}")
@@ -61,9 +84,9 @@ def gestisci_client(conn, addr):
     except Exception as e:
         print(f"Errore con {addr}: {e}")
     finally:
-        conn.close()  # Chiude la connessione con il client
+        # Chiude la connessione con il client
+        conn.close()  
 
-# Funzione per avviare il server
 # Funzione per avviare il server
 def avvia_server():
     global server_running
@@ -87,7 +110,6 @@ def avvia_server():
         server_socket.close()
         print("Server chiuso.")
 
-# Funzione per visualizzare gli esami
 # Funzione per visualizzare gli esami
 def visualizza_esami():
     # Controlla se il file degli esami esiste
