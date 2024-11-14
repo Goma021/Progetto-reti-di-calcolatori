@@ -11,12 +11,21 @@ ADDR = (SERVER, PORT)  # Indirizzo della segreteria (IP, porta)
 # Creazione del socket per la comunicazione con la segreteria
 studente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Tentativo di connessione alla segreteria
-try:
-    studente_socket.connect(ADDR)
-except socket.error as e:
-    print(f"Errore di connessione: {e}")
-    exit(1)
+# Funzione per avviare la connessione alla segreteria
+def avvia_connessione():
+    try:
+        studente_socket.connect(ADDR)
+        # Attende la conferma della connessione dalla segreteria
+        conferma = studente_socket.recv(1024).decode(FORMAT)
+        if conferma != "CONNESSIONE_ACCETTATA":
+            print("Connessione non accettata dalla segreteria.")
+            exit(1)
+    except socket.error as e:
+        print(f"Errore di connessione: {e}")
+        exit(1)
+
+# Avvia la connessione all'avvio del file
+avvia_connessione()
 
 # Funzione per richiedere le date degli esami
 def richiesta_esami():
@@ -34,12 +43,13 @@ def richiesta_esami():
             print("Il nome dell'esame non può essere vuoto.")
             return
 
-        # Invia il nome dell'esame al server
+        # Invia il nome dell'esame alla segreteria
         studente_socket.sendall(nome_esame.encode(FORMAT))
 
-        # Riceve le date disponibili dal server
-        date_disponibili = studente_socket.recv(1024).decode(FORMAT)
-        print(f"Le date disponibili per {nome_esame} sono: {date_disponibili}")
+        # Riceve le date disponibili dalla segreteria
+        date_disponibili = studente_socket.recv(1024)
+        date_disponibili = date_disponibili.pickle.loads(date_disponibili)
+        print(f"Le date disponibili per {nome_esame} sono:{date_disponibili.data_1}")
     except socket.error as e:
         print(f"Errore durante la richiesta degli esami: {e}")
 
@@ -47,7 +57,7 @@ def richiesta_esami():
 def prenotazione_esame():
     try:
         # Invia una richiesta per prenotare un esame
-        studente_socket.send("PRENOTAZIONE_ESAME".encode(FORMAT))
+        studente_socket.sendall("PRENOTAZIONE_ESAME".encode(FORMAT))
         
         # Richiede all'utente di inserire il proprio ID studente
         studente_id = input("Inserisci il tuo id studente: ")
@@ -78,7 +88,6 @@ def prenotazione_esame():
     except socket.error as e:
         print(f"Errore durante la prenotazione dell'esame: {e}")
 
-# Funzione per chiudere la connessione
 # Funzione per chiudere la connessione
 def chiudi_connessione():
     try:
