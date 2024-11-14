@@ -2,6 +2,7 @@ import socket
 import pickle
 import threading
 from esame import Esame
+from datetime import datetime
 
 # Costanti per la configurazione
 FORMAT = 'utf-8'  # Formato di codifica per le stringhe
@@ -34,13 +35,38 @@ segreteria_socket_studenti.listen(5)
 # Tiene traccia del numero di connessioni attive con gli studenti
 connessioni_attive = 0
 
+# Funzione per validare la data nel formato gg/mm/aaaa
+def valida_data(data):
+    try:
+        datetime.strptime(data, "%d/%m/%Y")
+        return True
+    except ValueError:
+        return False
+
 # Funzione per inserire un nuovo esame
 def inserisci_esame():
     # Richiede all'utente di inserire il nome dell'esame e tre date disponibili
     nome_esame = input("Inserisci il nome dell'esame: ")
-    data_1 = input("Inserisci la prima data disponibile (dd/mm/yyyy): ")
-    data_2 = input("Inserisci la seconda data disponibile (dd/mm/yyyy): ")
-    data_3 = input("Inserisci la terza data disponibile (dd/mm/yyyy): ")
+    while True:
+        data_1 = input("Inserisci la prima data disponibile (gg/mm/aaaa): ")
+        if valida_data(data_1):
+            break
+        else:
+            print("Formato data non valido. Riprova.")
+    
+    while True:
+        data_2 = input("Inserisci la seconda data disponibile (gg/mm/aaaa): ")
+        if valida_data(data_2):
+            break
+        else:
+            print("Formato data non valido. Riprova.")
+    
+    while True:
+        data_3 = input("Inserisci la terza data disponibile (gg/mm/aaaa): ")
+        if valida_data(data_3):
+            break
+        else:
+            print("Formato data non valido. Riprova.")
     
     # Converte il nome dell'esame in maiuscolo
     nome_esame = nome_esame.upper()
@@ -61,15 +87,15 @@ def inserisci_esame():
     print("Esame inviato al server")
 
 # Funzione per gestire le richieste degli studenti
-# Gestisce le connessioni in entrata dagli studenti e le loro richieste
 def gestisci_richieste_studenti(conn, addr):
     global connessioni_attive
-    
     # Incrementa il contatore delle connessioni attive
     connessioni_attive += 1
-    
     # Stampa un messaggio di conferma della connessione
     print(f"Connessione stabilita con {addr}. Connessioni attive: {connessioni_attive}")
+    
+    # Invia la conferma della connessione allo studente
+    conn.sendall("CONNESSIONE_ACCETTATA".encode(FORMAT))
     
     try:
         while True:
@@ -80,19 +106,14 @@ def gestisci_richieste_studenti(conn, addr):
                 # Gestisce la prenotazione di un esame
                 # Riceve i dati della prenotazione dallo studente
                 prenotazione = conn.recv(5000)
-                
                 # Invia un comando al server per indicare che si sta effettuando una prenotazione
                 segreteria_socket.sendall("PRENOTAZIONE_ESAME".encode(FORMAT))
-                
                 # Invia i dati della prenotazione al server
                 segreteria_socket.sendall(prenotazione)
-                
                 # Riceve la risposta dal server
                 risposta = segreteria_socket.recv(5000)
-                
                 # Invia la risposta allo studente
                 conn.sendall(risposta)
-                
                 # Stampa un messaggio di conferma
                 print(f"Prenotazione effettuata")
             
@@ -100,19 +121,16 @@ def gestisci_richieste_studenti(conn, addr):
                 # Gestisce la richiesta delle date degli esami
                 # Riceve il nome dell'esame dallo studente
                 nome_esame = conn.recv(1024).decode(FORMAT)
-                
                 # Stampa un messaggio di richiesta delle date degli esami
                 print(f"Richiesta date esami per {nome_esame}")
-                
                 # Invia un comando al server per richiedere le date degli esami
                 segreteria_socket.sendall("DATE_ESAMI".encode(FORMAT))
-                
                 # Invia il nome dell'esame al server
                 segreteria_socket.sendall(nome_esame.encode(FORMAT))
-                
                 # Riceve le date disponibili dal server
-                date_disponibili = segreteria_socket.recv(1024).decode(FORMAT)
-                conn.sendall(date_disponibili.encode(FORMAT))
+                date_disponibili = segreteria_socket.recv(1024)
+                # Invia solo le date degli esami allo studente
+                conn.sendall(date_disponibili)
             elif richiesta == DISCONNESSIONE:
                 # Gestisce la disconnessione del client
                 print(f"Disconnessione da {addr}")
